@@ -1,0 +1,5 @@
+{
+    "git.ignoreLimitWarning": true,
+    "python.defaultInterpreterPath": "/Users/krishivpanchal/.pyenv/versions/3.10.18/bin/python",
+    "python-envs.defaultEnvManager": "ms-python.python:system"
+}
