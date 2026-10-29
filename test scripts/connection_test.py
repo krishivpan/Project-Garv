@@ -1,7 +1,7 @@
 from pymavlink import mavutil
 import time
 
-master = mavutil.mavlink_connection('udpin:127.0.0.1:14551')
+master = mavutil.mavlink_connection('udpin:127.0.0.1:14552')
 
 master.wait_heartbeat()
 
