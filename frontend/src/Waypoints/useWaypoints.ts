@@ -7,7 +7,7 @@ export type Waypoint = {
     alt_m: number  // altitude in meters
 };
 
-const DEFAULT_ALT_M = 10;
+const DEFAULT_ALT_M = 10;  // the number of meters above home for new waypoints
 
 
 export function useWaypoints() {
@@ -23,13 +23,13 @@ export function useWaypoints() {
                 alt_m: DEFAULT_ALT_M,
             },
         ]);
-    };
+    }
 
     function moveWaypoint(id: string, lat: number, lon: number) {
         setWaypoints(old => 
             old.map(waypoint => waypoint.id === id ? {...waypoint, lat: lat, lon: lon} : waypoint)
-            );
-    };
+        );
+    }
 
     function setAltitude(id: string, alt_m: number) {
         setWaypoints(old => 
@@ -49,10 +49,4 @@ export function useWaypoints() {
 
     return { waypoints, addWaypoint, moveWaypoint, setAltitude, removeWaypoint, clearWaypoints };
 
-};
-
-
-
-
-
-
+}
