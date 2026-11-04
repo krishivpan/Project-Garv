@@ -1,5 +1,4 @@
-import { CircleMarker, useMapEvents } from "react-leaflet"
-import { useState } from "react"
+import { CircleMarker, Polyline, useMapEvents } from "react-leaflet"
 import type { Waypoint } from "./useWaypoints"
 
 
@@ -15,6 +14,9 @@ export default function WaypointLayer(
             addWaypoint(e.latlng.lat, e.latlng.lng)
         }
     })
+
+    const numPositions = waypoints.filter(waypoint => waypoint.id !== undefined && waypoint.lat !== undefined)
+                                .map(waypoint => [waypoint.lat, waypoint.lon] as [number, number])
 
     return <>
 
@@ -32,6 +34,13 @@ export default function WaypointLayer(
             />
             )}
         )}
+
+        {numPositions.length > 1 &&
+            <Polyline 
+                positions={numPositions}
+            />
+        }
+
         
     </>
 }
