@@ -5,9 +5,11 @@ import L from "leaflet";
 export default function WaypointLayer({
     waypoints,
     addWaypoint,
+    moveWaypoint,
 }: {
     waypoints: Waypoint[];
     addWaypoint: (lat: number, lon: number) => void;
+    moveWaypoint: (id: string, lat: number, lon: number) => void;
 }) {
     useMapEvents({
         click(e) {
@@ -23,21 +25,28 @@ export default function WaypointLayer({
     return (
         <>
             {waypoints.map((waypoint, index) => {
-
                 const markerIcon = L.divIcon({
                     html: `<div>${index + 1}</div>`,
                     className: "wp-icon",
                     iconSize: [24, 24],
                     iconAnchor: [12, 12],
-                })
+                });
 
                 return (
                     <Marker
                         key={waypoint.id}
                         position={[waypoint.lat, waypoint.lon]}
                         icon={markerIcon}
-                        eventHandlers={{ click: () => {} }} 
+                        eventHandlers={{ 
+                            click: () => {}, 
+                            dragend: (e) => {
+                                const target = e.target
+                                const newLatLng = target.getLatLng()
+                                return moveWaypoint(waypoint.id, newLatLng.lat, newLatLng.lng)
+                            }
+                        }}
                         bubblingMouseEvents={false}
+                        draggable={true}
                     />
                 );
             })}
