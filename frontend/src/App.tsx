@@ -38,7 +38,7 @@ function CenterOnFirstPosition({ lat, lon }: { lat: number; lon: number }) {
 
 export default function App() {
     const { telemetry, connected } = useTelemetry();
-    const { waypoints, addWaypoint } = useWaypoints();
+    const { waypoints, addWaypoint, moveWaypoint } = useWaypoints();
 
     const hasPosition =
         telemetry !== null && telemetry.lat !== null && telemetry.lon !== null;
@@ -70,6 +70,7 @@ export default function App() {
                 <WaypointLayer
                     waypoints={waypoints}
                     addWaypoint={addWaypoint}
+                    moveWaypoint={moveWaypoint}
                 />
             </MapContainer>
 
