@@ -38,3 +38,15 @@ body,
   font-weight: bold;
   margin-bottom: 4px;
 }
+
+/* Waypoints */
+
+.wp-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid green;
+  border-radius: 50%;
+  background-color: yellowgreen;
+  font-weight: bold;
+}
