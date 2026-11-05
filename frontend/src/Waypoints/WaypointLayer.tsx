@@ -1,5 +1,6 @@
-import { CircleMarker, Polyline, useMapEvents } from "react-leaflet";
+import { CircleMarker, Marker, Polyline, useMapEvents } from "react-leaflet";
 import type { Waypoint } from "./useWaypoints";
+import L from "leaflet";
 
 export default function WaypointLayer({
     waypoints,
@@ -21,13 +22,20 @@ export default function WaypointLayer({
 
     return (
         <>
-            {waypoints.map((waypoint) => {
+            {waypoints.map((waypoint, index) => {
+
+                const markerIcon = L.divIcon({
+                    html: `<div>${index + 1}</div>`,
+                    className: "wp-icon",
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12],
+                })
+
                 return (
-                    <CircleMarker
+                    <Marker
                         key={waypoint.id}
-                        center={[waypoint.lat, waypoint.lon]}
-                        radius={8}
-                        pathOptions={{ color: "#008000" }}
+                        position={[waypoint.lat, waypoint.lon]}
+                        icon={markerIcon}
                         eventHandlers={{ click: () => {} }} 
                         bubblingMouseEvents={false}
                     />
