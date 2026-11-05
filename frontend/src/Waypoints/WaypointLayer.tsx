@@ -1,4 +1,4 @@
-import { CircleMarker, Marker, Polyline, useMapEvents } from "react-leaflet";
+import { Marker, Polyline, useMapEvents } from "react-leaflet";
 import type { Waypoint } from "./useWaypoints";
 import L from "leaflet";
 
@@ -42,7 +42,7 @@ export default function WaypointLayer({
                             dragend: (e) => {
                                 const target = e.target
                                 const newLatLng = target.getLatLng()
-                                return moveWaypoint(waypoint.id, newLatLng.lat, newLatLng.lng)
+                                moveWaypoint(waypoint.id, newLatLng.lat, newLatLng.lng)
                             }
                         }}
                         bubblingMouseEvents={false}
