@@ -13,6 +13,7 @@ export type Telemetry = {
   battery_pct: number | null
   gps_fix: number | null
   satellites: number | null
+  mission_status: string // "idle", "uploading", "ok" or "failed: <reason>"
   link: 'waiting' | 'ok' | 'lost'
 }
 
