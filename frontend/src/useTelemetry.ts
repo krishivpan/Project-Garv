@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'react'
 
+// The mission last read back from the drone (backend: mission.summarize).
+// standard = shaped like ours: takeoff, waypoints, return home.
+export type DroneMission = {
+  waypoints: { lat: number; lon: number; alt_m: number }[]
+  standard: boolean
+  item_count: number // includes the home item
+}
+
 // Same keys as the backend's JSON. null means "unknown".
 export type Telemetry = {
   armed: boolean | null
@@ -13,7 +21,8 @@ export type Telemetry = {
   battery_pct: number | null
   gps_fix: number | null
   satellites: number | null
-  mission_status: string // "idle", "uploading", "ok" or "failed: <reason>"
+  mission_status: string // "idle", "uploading", "verifying", "ok" or "failed: <reason>"
+  drone_mission: DroneMission | null // null = we don't know what's on the drone
   link: 'waiting' | 'ok' | 'lost'
 }
 
