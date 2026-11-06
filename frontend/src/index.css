@@ -50,3 +50,40 @@ body,
   background-color: yellowgreen;
   font-weight: bold;
 }
+
+/* Waypoint list in the bottom-left corner, away from the zoom buttons
+   (top-left), the status panel (top-right) and the credits (bottom-right).
+   Scrolls once it's taller than 40% of the window. */
+.waypoint-list {
+  position: fixed;
+  bottom: 24px;
+  left: 12px;
+  height: 40vh;
+  width: 25vh;
+  overflow-y: auto;
+  z-index: 1000;
+  padding: 8px 12px;
+  background: white;
+  color: black;
+  border: 2px solid #888;
+  border-radius: 6px;
+  font: 14px/1.4 system-ui, sans-serif;
+  user-select: none;
+}
+
+.waypoint-list-header,
+.waypoint-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.waypoint-list-header {
+  justify-content: space-between;
+}
+
+.waypoint-row input {
+  width: 56px;
+}
