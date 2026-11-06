@@ -80,7 +80,8 @@ export default function App() {
                 setAltitude={setAltitude}
                 removeWaypoint={removeWaypoint}
                 clearWaypoints={clearWaypoints}
-                missionStatus={telemetry?.mission_status ?? null}
+                telemetry={telemetry}
+                connected={connected}
             />
 
             <div className={warning ? "panel warning" : "panel"}>
