@@ -24,9 +24,12 @@ class VehicleState:
     battery_pct: int | None = None
     gps_fix: int | None = None
     satellites: int | None = None
-    # Result of the last mission upload: "idle", "uploading", "ok" or
-    # "failed: <reason>". Set by mavlink_link.py, not by apply_message.
+    # Result of the last mission upload: "idle", "uploading", "verifying",
+    # "ok" or "failed: <reason>". Set by mavlink_link.py, not by apply_message.
     mission_status: str = "idle"
+    # The mission last read back from the drone (see mission.summarize),
+    # or None if we don't know what's on it. Also set by mavlink_link.py.
+    drone_mission: dict | None = None
     # time.monotonic() when the last autopilot HEARTBEAT arrived.
     # Used to work out the link status; it's not sent to the browser.
     last_heartbeat: float | None = None
