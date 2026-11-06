@@ -3,6 +3,7 @@ import { CircleMarker, MapContainer, TileLayer, useMap } from "react-leaflet";
 import { useTelemetry } from "./useTelemetry";
 import { useWaypoints } from "./Waypoints/useWaypoints";
 import WaypointLayer from "./Waypoints/WaypointLayer";
+import WaypointList from "./Waypoints/WaypointList";
 
 // MAVLink GPS fix_type numbers -> short labels (index = fix_type).
 const GPS_FIX_NAMES = [
@@ -38,7 +39,7 @@ function CenterOnFirstPosition({ lat, lon }: { lat: number; lon: number }) {
 
 export default function App() {
     const { telemetry, connected } = useTelemetry();
-    const { waypoints, addWaypoint, moveWaypoint } = useWaypoints();
+    const { waypoints, addWaypoint, moveWaypoint, setAltitude, removeWaypoint, clearWaypoints } = useWaypoints();
 
     const hasPosition =
         telemetry !== null && telemetry.lat !== null && telemetry.lon !== null;
@@ -74,6 +75,13 @@ export default function App() {
                 />
             </MapContainer>
 
+            <WaypointList
+                waypoints={waypoints}
+                setAltitude={setAltitude}
+                removeWaypoint={removeWaypoint}
+                clearWaypoints={clearWaypoints}
+            />
+
             <div className={warning ? "panel warning" : "panel"}>
                 {!connected && (
                     <div className="alert">Backend disconnected</div>
@@ -83,10 +91,6 @@ export default function App() {
                 )}
                 <table>
                     <tbody>
-                        <tr>
-                            <td># of Waypoints</td>
-                            <td>{waypoints.length}</td>
-                        </tr>
                         <tr>
                             <td>Link</td>
                             <td>{telemetry?.link ?? "—"}</td>
