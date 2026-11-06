@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { uploadMission } from "./uploadMission";
 import type { Waypoint } from "./useWaypoints";
 
 // Side panel listing every waypoint, with an altitude box and a delete button.
@@ -7,14 +9,34 @@ export default function WaypointList({
     setAltitude,
     removeWaypoint,
     clearWaypoints,
+    missionStatus,
 }: {
     waypoints: Waypoint[];
     setAltitude: (id: string, alt_m: number) => void;
     removeWaypoint: (id: string) => void;
     clearWaypoints: () => void;
+    missionStatus: string | null; // null until telemetry arrives
 }) {
+    // Error from the request itself (e.g. no drone link). The upload's
+    // own result comes from missionStatus instead.
+    const [requestError, setRequestError] = useState<string | null>(null);
+
+    async function handleUpload() {
+        setRequestError(await uploadMission(waypoints));
+    }
+
+    const canUpload =
+        waypoints.length > 0 && missionStatus !== null && missionStatus !== "uploading";
+
     return (
         <div className="waypoint-list">
+            <div className="waypoint-list-header">
+                <button onClick={handleUpload} disabled={!canUpload}>
+                    Upload mission
+                </button>
+                <span>{requestError ?? `Last upload: ${missionStatus ?? "—"}`}</span>
+            </div>
+
             <div className="waypoint-list-header">
                 <strong>Waypoints</strong>
                 {/* Pass the function itself; React calls it on click. */}
