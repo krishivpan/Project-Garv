@@ -5,6 +5,8 @@ import time
 
 from pymavlink import mavutil
 
+from app.connection import send_lock
+
 m = mavutil.mavlink
 
 # Safety limits. The backend enforces these; the frontend mirrors them in
@@ -96,6 +98,40 @@ def build_mission_items(waypoints: list[dict]) -> list[dict]:
     return items
 
 
+# Where things sit in a mission built by build_mission_items above.
+# N = mission_count = number of items INCLUDING home.
+#
+#   seq 0          home      (ArduPilot's own; not one of your waypoints)
+#   seq 1          takeoff
+#   seq 2          your waypoint index 0   <- FIRST_WAYPOINT_SEQ
+#   seq 3          your waypoint index 1
+#   ...
+#   seq N-2        your last waypoint      (index N-4)
+#   seq N-1        return to launch
+#
+# So: waypoint index = seq - 2, and there are N - 3 waypoints
+# (N minus home, takeoff and RTL). Example with 3 waypoints: N = 6,
+# waypoints at seq 2, 3, 4 -> indexes 0, 1, 2; seq 5 is RTL.
+FIRST_WAYPOINT_SEQ = 2
+NON_WAYPOINT_ITEMS = 3  # home + takeoff + RTL
+
+
+def seq_to_waypoint_index(seq: int | None, mission_count: int | None) -> int | None:
+    """Mission seq -> 0-based index into the frontend's waypoint list.
+
+    Returns None for home, takeoff and RTL, for anything out of range,
+    or if either number is unknown. Only meaningful for a mission in our
+    layout (drone_mission["standard"] is True).
+    """
+    if seq is None or mission_count is None:
+        return None
+    index = seq - FIRST_WAYPOINT_SEQ
+    waypoint_count = mission_count - NON_WAYPOINT_ITEMS
+    if 0 <= index < waypoint_count:
+        return index
+    return None
+
+
 def is_for_us(conn, msg, target_system: int) -> bool:
     """True if msg is a mission message from our drone, addressed to us,
     about the main mission (not the geofence or rally points).
@@ -139,14 +175,17 @@ def upload_mission(conn, target_system: int, target_component: int, items: list[
     and finishes with MISSION_ACK. If it goes quiet we repeat our last
     message; if it stays quiet, or the whole thing takes too long, we stop.
     """
+    # Every send holds send_lock (see connection.py for why).
     def send_item(seq):
-        conn.mav.mission_item_int_send(
-            target_system, target_component, mission_type=m.MAV_MISSION_TYPE_MISSION, **items[seq]
-        )
+        with send_lock:
+            conn.mav.mission_item_int_send(
+                target_system, target_component, mission_type=m.MAV_MISSION_TYPE_MISSION, **items[seq]
+            )
 
     def resend():
         if last_seq is None:
-            conn.mav.mission_count_send(target_system, target_component, len(items), m.MAV_MISSION_TYPE_MISSION)
+            with send_lock:
+                conn.mav.mission_count_send(target_system, target_component, len(items), m.MAV_MISSION_TYPE_MISSION)
         else:
             send_item(last_seq)
 
@@ -192,12 +231,14 @@ def download_mission(conn, target_system: int, target_component: int, handle_oth
     count = None  # number of items, once the drone has told us
     items = []
 
+    # Every send holds send_lock (see connection.py for why).
     def resend():
-        if count is None:
-            conn.mav.mission_request_list_send(target_system, target_component, m.MAV_MISSION_TYPE_MISSION)
-        else:
-            # Ask for the next item we don't have yet.
-            conn.mav.mission_request_int_send(target_system, target_component, len(items), m.MAV_MISSION_TYPE_MISSION)
+        with send_lock:
+            if count is None:
+                conn.mav.mission_request_list_send(target_system, target_component, m.MAV_MISSION_TYPE_MISSION)
+            else:
+                # Ask for the next item we don't have yet.
+                conn.mav.mission_request_int_send(target_system, target_component, len(items), m.MAV_MISSION_TYPE_MISSION)
 
     resend()
     deadline = time.monotonic() + DEADLINE_S
@@ -234,9 +275,10 @@ def download_mission(conn, target_system: int, target_component: int, handle_oth
         retries = 0
         if len(items) == count:
             # Tell the drone we're done, as the protocol requires.
-            conn.mav.mission_ack_send(
-                target_system, target_component, m.MAV_MISSION_ACCEPTED, m.MAV_MISSION_TYPE_MISSION
-            )
+            with send_lock:
+                conn.mav.mission_ack_send(
+                    target_system, target_component, m.MAV_MISSION_ACCEPTED, m.MAV_MISSION_TYPE_MISSION
+                )
             return items
         resend()
 
@@ -265,7 +307,8 @@ def summarize(items: list[dict]) -> dict:
     """What's on the drone, in the shape the frontend compares its map with.
 
     standard = True if it's shaped like ours: takeoff, waypoints, RTL.
-    item_count includes home, like MISSION_CURRENT.total does.
+    item_count includes home (MISSION_CURRENT.total does NOT; see
+    mavlink_link.mission_changed).
     """
     body = items[1:]  # skip home
     commands = [it["command"] for it in body]
