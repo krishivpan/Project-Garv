@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+from app.commands import set_mode
 from app.mavlink_link import get_state_dict, start_reader, submit_mission
 from app.mission import MAX_ALT_M, MAX_WAYPOINTS, MIN_ALT_M, build_mission_items, check_mission
 
@@ -80,6 +81,21 @@ def upload(mission: MissionIn):
     if not submit_mission(build_mission_items(waypoints)):
         raise HTTPException(status_code=409, detail="An upload is already in progress")
     return {"status": "uploading"}
+
+
+# Plain "def" (not "async def"): FastAPI runs these in a worker thread, so
+# set_mode can wait up to 3 s for confirmation without freezing the
+# WebSocket loops.
+@app.post("/api/command/rtl")
+def command_rtl():
+    ok, reason = set_mode("RTL")
+    return {"ok": ok, "reason": reason}
+
+
+@app.post("/api/command/land")
+def command_land():
+    ok, reason = set_mode("LAND")
+    return {"ok": ok, "reason": reason}
 
 
 @app.websocket("/ws/telemetry")
