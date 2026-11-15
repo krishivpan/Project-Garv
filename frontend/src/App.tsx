@@ -1,6 +1,13 @@
 import { useEffect, useRef } from "react";
 import { CircleMarker, MapContainer, TileLayer, useMap } from "react-leaflet";
+import CommandButtons from "./CommandButtons";
 import { useTelemetry } from "./useTelemetry";
+import {
+    isMissionComplete,
+    isMissionRunning,
+    mapMatchesDrone,
+    progressText,
+} from "./Waypoints/missionProgress";
 import { useWaypoints } from "./Waypoints/useWaypoints";
 import WaypointLayer from "./Waypoints/WaypointLayer";
 import WaypointList from "./Waypoints/WaypointList";
@@ -46,6 +53,22 @@ export default function App() {
     const linkLost = telemetry?.link === "lost";
     const warning = !connected || linkLost;
 
+    // Mission progress on the map. Only drawn when the map holds the same
+    // mission as the drone; otherwise marker numbers might not mean the same
+    // points. The panel text below is shown either way.
+    const inSync = mapMatchesDrone(waypoints, telemetry?.drone_mission ?? null);
+    // The waypoint being flown to: only while the mission is running.
+    const currentIndex =
+        inSync && isMissionRunning(telemetry) ? (telemetry?.current_waypoint_index ?? null) : null;
+    // Waypoints are flown in order, so "reached up to" is enough. Once the
+    // whole mission is complete, the last reached item is the return home
+    // (not a waypoint), so mark every waypoint reached.
+    const reachedUpTo = !inSync
+        ? null
+        : isMissionComplete(telemetry)
+          ? waypoints.length - 1
+          : (telemetry?.last_reached_waypoint_index ?? null);
+
     return (
         <>
             {/* Starts zoomed out on the whole world until the first position arrives. */}
@@ -72,8 +95,12 @@ export default function App() {
                     waypoints={waypoints}
                     addWaypoint={addWaypoint}
                     moveWaypoint={moveWaypoint}
+                    currentIndex={currentIndex}
+                    reachedUpTo={reachedUpTo}
                 />
             </MapContainer>
+
+            <CommandButtons telemetry={telemetry} connected={connected} />
 
             <WaypointList
                 waypoints={waypoints}
@@ -110,6 +137,10 @@ export default function App() {
                                       ? "ARMED"
                                       : "disarmed"}
                             </td>
+                        </tr>
+                        <tr>
+                            <td>Mission</td>
+                            <td>{progressText(telemetry) ?? "—"}</td>
                         </tr>
                         <tr>
                             <td>Altitude</td>

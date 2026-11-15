@@ -108,3 +108,40 @@ body,
   border: 2px solid #d00;
   background: #ffe5e5;
 }
+
+/* Mission progress on waypoint markers (added to .wp-icon).
+   Current: the one the drone is flying to. Reached: already done. */
+.wp-icon.wp-current {
+  background-color: orange;
+  border: 3px solid #b35900;
+  box-shadow: 0 0 0 4px rgba(255, 140, 0, 0.4);
+}
+
+.wp-icon.wp-reached {
+  background-color: #ccc;
+  border-color: #888;
+  color: #666;
+}
+
+/* RTL / LAND buttons: top-centre, always visible above the map. */
+.command-buttons {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  padding: 8px 12px;
+  background: white;
+  border: 2px solid #888;
+  border-radius: 6px;
+  font: 14px/1.4 system-ui, sans-serif;
+  text-align: center;
+  max-width: 280px;
+}
+
+.command-buttons button {
+  font-size: 16px;
+  font-weight: bold;
+  padding: 6px 18px;
+  margin: 0 4px;
+}

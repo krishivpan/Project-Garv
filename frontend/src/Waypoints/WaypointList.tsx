@@ -1,25 +1,11 @@
 import { useState } from "react";
 import type { DroneMission, Telemetry } from "../useTelemetry";
+import { mapMatchesDrone } from "./missionProgress";
 import { MAX_ALT_M, MAX_WAYPOINTS, MIN_ALT_M, uploadMission } from "./uploadMission";
 import type { Waypoint } from "./useWaypoints";
 
 function altitudeOk(alt_m: number) {
     return alt_m >= MIN_ALT_M && alt_m <= MAX_ALT_M;
-}
-
-// True if the drone holds exactly the waypoints on the map (allowing for
-// the drone rounding positions to 1e-7 degrees and altitudes to 1 cm).
-function sameAsDrone(waypoints: Waypoint[], drone: DroneMission) {
-    return (
-        drone.standard &&
-        drone.waypoints.length === waypoints.length &&
-        drone.waypoints.every(
-            (d, i) =>
-                Math.abs(d.lat - waypoints[i].lat) < 1e-7 &&
-                Math.abs(d.lon - waypoints[i].lon) < 1e-7 &&
-                Math.abs(d.alt_m - waypoints[i].alt_m) < 0.05,
-        )
-    );
 }
 
 // One line saying how the map compares with what the drone would fly.
@@ -28,7 +14,7 @@ function syncText(waypoints: Waypoint[], drone: DroneMission | null) {
     if (drone.item_count <= 1) return "No mission on the drone";
     // e.g. uploaded from another app, or an older upload without return-home.
     if (!drone.standard) return "Drone has a different kind of mission; upload to replace it";
-    if (sameAsDrone(waypoints, drone)) return "Map matches the drone's mission";
+    if (mapMatchesDrone(waypoints, drone)) return "Map matches the drone's mission";
     return "Map differs from the drone's mission";
 }
 

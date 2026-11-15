@@ -23,6 +23,17 @@ export type Telemetry = {
   satellites: number | null
   mission_status: string // "idle", "uploading", "verifying", "ok" or "failed: <reason>"
   drone_mission: DroneMission | null // null = we don't know what's on the drone
+  // Mission progress as seq numbers (seq 0 = home). Don't turn these into
+  // waypoint numbers here; use the *_waypoint_index fields below.
+  mission_count: number | null // items on the drone, including home
+  mission_current: number | null // seq the drone is working on
+  last_reached: number | null // seq the drone last finished
+  // The same progress as indexes into the map's waypoint list (0 = first
+  // waypoint), worked out by the backend. null when not on a waypoint
+  // (takeoff, return home) or the drone's mission isn't in our layout.
+  current_waypoint_index: number | null
+  last_reached_waypoint_index: number | null
+  commands_enabled: boolean // COMMANDS_ENABLED in backend/.env
   link: 'waiting' | 'ok' | 'lost'
 }
 
