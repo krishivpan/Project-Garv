@@ -7,8 +7,9 @@ from dataclasses import asdict
 
 from pymavlink import mavutil
 
-from app.config import MAVLINK_CONNECTION
-from app.mission import download_mission, missions_match, summarize, upload_mission
+from app.config import COMMANDS_ENABLED, MAVLINK_CONNECTION
+from app.connection import clear_connection, send_lock, set_connection
+from app.mission import download_mission, missions_match, seq_to_waypoint_index, summarize, upload_mission
 from app.vehicle_state import VehicleState, apply_message, is_autopilot_heartbeat
 
 LINK_TIMEOUT_S = 3      # no autopilot heartbeat for this long -> "lost"
@@ -48,8 +49,19 @@ def set_mission_status(status: str):
 
 
 def set_drone_mission(drone_mission: dict | None):
+    """Record what's on the drone after a download (None = unknown).
+
+    Also resets progress: a "reached"/"current" seq from the old mission
+    would mark the wrong waypoint in a new one. mission_current comes back
+    with the drone's next MISSION_CURRENT (sent about once a second);
+    last_reached only with the next MISSION_ITEM_REACHED, so after a backend
+    restart mid-flight, earlier reached waypoints aren't marked.
+    """
     with state_lock:
         state.drone_mission = drone_mission
+        state.mission_count = None if drone_mission is None else drone_mission["item_count"]
+        state.mission_current = None
+        state.last_reached = None
 
 
 def submit_mission(items: list[dict]) -> bool:
@@ -117,9 +129,12 @@ def mission_changed(msg, target_system) -> bool:
     """True if a MISSION_CURRENT message says the drone's mission isn't the
     one we last read (for example, someone uploaded from MAVProxy or QGC).
 
-    Uses MISSION_CURRENT.total, the drone's item count. 0 or 65535 means
-    the autopilot doesn't report it. A change that keeps the same number of
-    items can't be noticed this way.
+    Uses MISSION_CURRENT.total, the drone's item count WITHOUT home
+    (ArduPilot: GCS_Common.cpp send_mission_current, "exclude home").
+    Our item_count includes home, so compare total with item_count - 1.
+    0 or 65535 means the autopilot doesn't report it (0 is also an empty
+    mission, which therefore can't be noticed). A change that keeps the
+    same number of items can't be noticed this way either.
     """
     if msg.get_type() != "MISSION_CURRENT" or msg.get_srcSystem() != target_system:
         return False
@@ -128,7 +143,7 @@ def mission_changed(msg, target_system) -> bool:
         return False
     with state_lock:
         known = state.drone_mission
-    return known is None or known["item_count"] != total
+    return known is None or known["item_count"] - 1 != total
 
 
 def open_connection():
@@ -150,13 +165,14 @@ def open_connection():
 
     # Ask the autopilot to send all its telemetry streams at about 5 Hz.
     # SITL already does this; real hardware often needs to be asked.
-    conn.mav.request_data_stream_send(
-        msg.get_srcSystem(),
-        msg.get_srcComponent(),
-        mavutil.mavlink.MAV_DATA_STREAM_ALL,
-        STREAM_RATE_HZ,
-        1,  # 1 = start sending
-    )
+    with send_lock:  # every send holds it; see connection.py
+        conn.mav.request_data_stream_send(
+            msg.get_srcSystem(),
+            msg.get_srcComponent(),
+            mavutil.mavlink.MAV_DATA_STREAM_ALL,
+            STREAM_RATE_HZ,
+            1,  # 1 = start sending
+        )
     return conn, msg.get_srcSystem(), msg.get_srcComponent()
 
 
@@ -166,6 +182,8 @@ def read_loop():
         conn = None
         try:
             conn, target_system, target_component = open_connection()
+            # From now on other threads may send on it (holding send_lock).
+            set_connection(conn, target_system, target_component)
             # Find out what's on the drone before anything else.
             refresh_drone_mission(conn, target_system, target_component)
             last_refresh = time.monotonic()
@@ -180,6 +198,8 @@ def read_loop():
                     last_refresh = time.monotonic()
         except Exception as e:
             print(f"MAVLink error: {e!r}; reconnecting in {RECONNECT_DELAY_S} s")
+            # Stop other threads from picking up the connection we're about to close.
+            clear_connection()
             # Drop queued missions: they'd be stale by the time we're back.
             while not mission_queue.empty():
                 mission_queue.get_nowait()
@@ -189,6 +209,9 @@ def read_loop():
                 if state.mission_status in BUSY_STATUSES:
                     state.mission_status = "failed: connection error"
                 state.drone_mission = None
+                state.mission_count = None
+                state.mission_current = None
+                state.last_reached = None
             if conn is not None:
                 conn.close()  # free the UDP port so we can reopen it
             time.sleep(RECONNECT_DELAY_S)
@@ -215,4 +238,18 @@ def get_state_dict() -> dict:
         data["link"] = "ok"
     else:
         data["link"] = "lost"
+    # A setting, not vehicle state, but the browser needs it to enable buttons.
+    data["commands_enabled"] = COMMANDS_ENABLED
+
+    # Mission progress as indexes into the browser's waypoint list, so the
+    # frontend never has to know the seq layout. Only for missions in our
+    # layout (takeoff, waypoints, RTL); None otherwise or when not on a waypoint.
+    drone_mission = data["drone_mission"]
+    ours = drone_mission is not None and drone_mission["standard"]
+    data["current_waypoint_index"] = (
+        seq_to_waypoint_index(data["mission_current"], data["mission_count"]) if ours else None
+    )
+    data["last_reached_waypoint_index"] = (
+        seq_to_waypoint_index(data["last_reached"], data["mission_count"]) if ours else None
+    )
     return data
