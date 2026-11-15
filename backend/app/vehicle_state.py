@@ -30,6 +30,18 @@ class VehicleState:
     # The mission last read back from the drone (see mission.summarize),
     # or None if we don't know what's on it. Also set by mavlink_link.py.
     drone_mission: dict | None = None
+    # Mission progress. All three are mission seq numbers / counts, NOT
+    # indexes into the frontend's waypoint list; use
+    # mission.seq_to_waypoint_index() to convert.
+    # Number of items on the drone, including home at seq 0. Set together
+    # with drone_mission, from the MISSION_COUNT of the last download
+    # (every upload is followed by a download).
+    mission_count: int | None = None
+    # seq of the item the drone is working on now (MISSION_CURRENT).
+    mission_current: int | None = None
+    # seq of the last item the drone finished (MISSION_ITEM_REACHED).
+    # Reset to None whenever a new mission is read from the drone.
+    last_reached: int | None = None
     # time.monotonic() when the last autopilot HEARTBEAT arrived.
     # Used to work out the link status; it's not sent to the browser.
     last_heartbeat: float | None = None
@@ -52,7 +64,16 @@ def apply_message(state: VehicleState, msg) -> None:
     """Copy the fields we care about from one MAVLink message into state."""
     msg_type = msg.get_type()
 
-    if msg_type == "HEARTBEAT":
+    # Mission progress only counts if it comes from the autopilot itself.
+    if msg_type in ("MISSION_CURRENT", "MISSION_ITEM_REACHED"):
+        if msg.get_srcComponent() != AUTOPILOT_COMPONENT_ID:
+            return
+        if msg_type == "MISSION_CURRENT":
+            state.mission_current = msg.seq
+        else:
+            state.last_reached = msg.seq
+
+    elif msg_type == "HEARTBEAT":
         if not is_autopilot_heartbeat(msg):
             return
         # base_mode is a set of bit flags; the SAFETY_ARMED bit means armed.
