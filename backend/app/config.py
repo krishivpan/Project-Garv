@@ -12,3 +12,7 @@ load_dotenv(Path(__file__).parent.parent / ".env")
 # Where to read MAVLink from. The default listens on the UDP port that
 # SITL/MAVProxy is told to send to with --out=udp:127.0.0.1:14552.
 MAVLINK_CONNECTION = os.getenv("MAVLINK_CONNECTION", "udpin:127.0.0.1:14552")
+
+# Whether the app may send commands (like mode changes) to the drone.
+# Off unless .env says COMMANDS_ENABLED=true, so a fresh setup is read-only.
+COMMANDS_ENABLED = os.getenv("COMMANDS_ENABLED", "false").strip().lower() == "true"
