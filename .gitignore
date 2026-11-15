@@ -22,3 +22,6 @@ venv/
 *.tlog
 *.bin
 logs/
+
+# Claude Code project notes (kept local)
+CLAUDE.md
